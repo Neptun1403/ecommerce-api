@@ -1,8 +1,9 @@
+require('dotenv').config();
 const db = require('../db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-const SECRET_KEY = 'mySecretKey';
+const SECRET_KEY = process.env.JWT_SECRET;
 
 exports.register = async (req, res) => {
     const { name, email, password, role } = req.body;
