@@ -1,12 +1,38 @@
 const db = require('../db');
 
 exports.getAllProducts = (req, res) => {
-    const sql = `
+    const { search, category_id, min_price, max_price } = req.query;
+
+    let sql = `
         SELECT products.*, categories.name AS category_name 
         FROM products 
         LEFT JOIN categories ON products.category_id = categories.id
+        WHERE 1=1
     `;
-    db.query(sql, (err, result) => {
+
+    const params = [];
+
+    if (search) {
+        sql += ' AND products.name LIKE ?';
+        params.push(`%${search}%`);
+    }
+
+    if (category_id) {
+        sql += ' AND products.category_id = ?';
+        params.push(category_id);
+    }
+
+    if (min_price) {
+        sql += ' AND products.price >= ?';
+        params.push(min_price);
+    }
+
+    if (max_price) {
+        sql += ' AND products.price <= ?';
+        params.push(max_price);
+    }
+
+    db.query(sql, params, (err, result) => {
         if (err) return res.status(500).json({ message: 'Error getting products' });
         res.json(result);
     });
