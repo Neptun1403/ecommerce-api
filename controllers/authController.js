@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const SECRET_KEY = process.env.JWT_SECRET;
 
 exports.register = async (req, res) => {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
         return res.status(400).json({ message: 'Name, email and password are required' });
@@ -22,7 +22,8 @@ exports.register = async (req, res) => {
                 return res.status(400).json({ message: 'Email already exists' });
             }
 
-            const roleName = role || 'user';
+            // Always assign 'user' role — admin cannot be set via register
+            const roleName = 'user';
             const getRoleSql = 'SELECT id FROM roles WHERE name = ?';
 
             db.query(getRoleSql, [roleName], async (err, roleResult) => {
@@ -60,25 +61,20 @@ exports.login = (req, res) => {
         return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const sql = `
-        SELECT users.*, roles.name AS role
-        FROM users
-        JOIN roles ON users.role_id = roles.id
-        WHERE users.email = ?
-    `;
+    const getUserSql = 'SELECT * FROM users WHERE email = ?';
 
-    db.query(sql, [email], async (err, result) => {
-        if (err) return res.status(500).json({ message: 'Database error' });
+    db.query(getUserSql, [email], async (err, userResult) => {
+        if (err) return res.status(500).json({ message: 'Database error (getting user)' });
 
-        if (result.length === 0) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+        if (userResult.length === 0) {
+            return res.status(400).json({ message: 'Invalid email or password' });
         }
 
-        const user = result[0];
+        const user = userResult[0];
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            return res.status(400).json({ message: 'Invalid email or password' });
         }
 
         const token = jwt.sign(
@@ -87,10 +83,6 @@ exports.login = (req, res) => {
             { expiresIn: '1h' }
         );
 
-        res.status(200).json({
-            message: 'Login successful',
-            token,
-            user: { id: user.id, name: user.name, email: user.email, role: user.role }
-        });
+        res.json({ message: 'Login successful', token });
     });
 };
